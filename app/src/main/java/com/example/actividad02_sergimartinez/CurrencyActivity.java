@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
@@ -27,13 +29,17 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 public class CurrencyActivity extends AppCompatActivity {
     ProgressDialog progressDialog;
+    ArrayList<Currency> currencys;
+    CurrencyAdapter currencyAdapter;
+    Context context;
     @Override
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_currency);
         String url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
-        CurrencyTask CurrencyTask = new CurrencyTask();
-        CurrencyTask.execute(url);
+        CurrencyTask currencyTask = new CurrencyTask();
+        currencyTask.execute(url);
     }
 
     public class CurrencyTask extends AsyncTask<String, String, String> {
@@ -72,68 +78,43 @@ public class CurrencyActivity extends AppCompatActivity {
                 return result;
             }
         }
-
-        public Document convertirStringToXMLDocument(String xmlString) {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder ;
-            try {
-                builder = factory.newDocumentBuilder();
-                Document doc = builder.parse(new InputSource(new StringReader(xmlString)));
-                System.out.println("hgola");
-                return doc;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-
         @Override
         protected void onPostExecute(String resultado) {
             super.onPostExecute(resultado);
-            TextView ejemploXML = (TextView) findViewById(R.id.ejemploXML);
-            ejemploXML.setText(resultado);
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            try {
+                DocumentBuilder documentBuilder = factory.newDocumentBuilder();
+                InputSource inputSource = new InputSource(new StringReader(resultado));
+                Document document = documentBuilder.parse(inputSource);
+
+                NodeList nodeList = document.getElementsByTagName("Cube");
+                currencys = new ArrayList<Currency>();
+                for (int i = 0; i < nodeList.getLength(); i++) {
+                    Node node = nodeList.item(i);
+
+                    if (node.hasAttributes() && !node.hasChildNodes()) {
+                        Element element = (Element) node;
+                        String currencyName = element.getAttribute("currency");
+                        String rate = element.getAttribute("rate");
+
+                        Currency currency = new Currency(currencyName, rate);
+                        currencys.add(currency);
+                    }
+                }
+                verCurrency();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
             progressDialog.dismiss();
-            String xml = resultado;
-
-            Document document = convertirStringToXMLDocument(xml);
-            NodeList listaItem = document.getElementsByTagName("item");
-            ArrayList arrayList = new ArrayList<Item>();
-            for (int i = 0; i < listaItem.getLength(); i++) {
-                Element element = (Element) listaItem.item(i);
-                String currency =  element.getAttribute("currency");
-                String rate =  element.getAttribute("rate");
-                Item item = new Item(currency, rate);
-                arrayList.add(item);
-            }
-            ArrayAdapter<String> adaptador = new ArrayAdapter<String>(CurrencyActivity.this, androidx.appcompat.R.layout.support_simple_spinner_dropdown_item,arrayList);
-            ListView listView = (ListView) findViewById(R.id.idListView);
-            listView.setAdapter(adaptador);
-
-        }
-
-        public class Item {
-            String name;
-            String ratio;
-
-
-            public Item(String anme, String ratio) {
-                this.name = name;
-                this.ratio = ratio;
-
-            }
-
-            @NonNull
-            @Override
-            public String toString() {
-                return "Atributo: " + this.name + " ID: " + this.ratio;
-            }
-
-
-        }
         }
 
 
+        }
+    void verCurrency() {
+        ListView listViewCoins = (ListView) findViewById(R.id.listViewCurrency);
+        CurrencyAdapter currencyAdapter = new CurrencyAdapter(this, currencys);
+        listViewCoins.setAdapter(currencyAdapter);
+    }
     }
 
 
